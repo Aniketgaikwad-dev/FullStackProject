@@ -1,0 +1,13 @@
+.playgorund__container {
+  width: 50%;
+  height: 100%;
+  background-color: aqua;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+.playgorund__container__canvas {
+  /* width: 80px; */
+  height: 50vh;
+  background-color: black;
+}
