@@ -4,10 +4,10 @@ import axios from "axios";
 import { fetchData } from "../../utils/fetchData";
 
 export default function () {
-  useEffect(() => {
-    const questionList = fetchData();
-    console.log(questionList);
-  }, []);
+  // useEffect(() => {
+  //   const questionList = fetchData();
+  //   console.log(questionList);
+  // }, []);
   return (
     <div className={styles.playgorund__container}>
       {/* <p>{process.env.REACT_APP_QUIZ_API}</p>
