@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from typing import List, Dict
+import uuid
 
 app = FastAPI()
 
@@ -7,26 +8,51 @@ app = FastAPI()
 users = []
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    print("Accepting client connection...")
-    await websocket.accept()
-    while True:
-        try:
-            # Wait for any message from the client
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, room_id: str):
+        await websocket.accept()
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = []
+        self.active_connections[room_id].append(websocket)
+        print(self.active_connections)
+
+    def disconnect(self, websocket: WebSocket, room_id: str):
+        self.active_connections[room_id].remove(websocket)
+        if not self.active_connections[room_id]:
+            del self.active_connections[room_id]
+
+    async def send_personal_message(
+        self, message: str, websocket: WebSocket, room_id: str
+    ):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: str, room_id: str):
+        for connection in self.active_connections[room_id]:
+            print(connection)
+            await connection.send_text(message)
+
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws/{room_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str):
+    await manager.connect(websocket, room_id)
+    try:
+        while True:
             data = await websocket.receive_text()
-            print(data)
-            # Send message to the client
-            a = 1000
-            await websocket.send_text("hehhet")
-            # while a != 0:
-            #     await websocket.send_text("Response from Websocket")
-            #     a -= 1
-            print("Sending")
-            # print(data)
-        except WebSocketDisconnect:
-            #  manager.disconnect(websocket)
-            # await manager.broadcast(f"Client #{client_id} left the chat")
-            # print("error:", e)
-            break
-    print("Bye..")
+            await manager.broadcast("welcome to quiz game", room_id)
+            # Broadcast to all connections in the room
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, room_id)
+
+
+@app.get("/create_room")
+async def create_room():
+    # Generate a unique room_id
+    room_id = str(uuid.uuid4())
+    return {"room_id": room_id}
