@@ -10,21 +10,25 @@ users = []
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.active_connections = {}
 
     async def connect(self, websocket: WebSocket, room_id: str, user_name: str):
         await websocket.accept()
         if room_id not in self.active_connections:
-            self.active_connections[room_id] = []
+            self.active_connections[room_id] = {}
+
         await manager.broadcast(f"{user_name} is joined the game!", room_id)
-        self.active_connections[room_id].append(websocket)
+        if user_name not in self.active_connections[room_id]:
+            self.active_connections[room_id][user_name] = {}
+            self.active_connections[room_id][user_name]["data"] = {}
+        self.active_connections[room_id][user_name]["connection"] = websocket
 
         await websocket.send_text(f"welcome to quiz game {user_name}")
 
         print(self.active_connections)
 
     async def disconnect(self, websocket: WebSocket, room_id: str, user_name: str):
-        self.active_connections[room_id].remove(websocket)
+        del self.active_connections[room_id][user_name]
         if not self.active_connections[room_id]:
             del self.active_connections[room_id]
 
@@ -36,9 +40,10 @@ class ConnectionManager:
         await websocket.send_text(message)
 
     async def broadcast(self, message: str, room_id: str):
-        for connection in self.active_connections[room_id]:
-            print(connection)
-            await connection.send_text(message)
+        for client in self.active_connections[room_id].keys():
+            await self.active_connections[room_id][client]["connection"].send_text(
+                message
+            )
 
 
 manager = ConnectionManager()
