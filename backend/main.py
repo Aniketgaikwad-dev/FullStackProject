@@ -12,17 +12,23 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, room_id: str):
+    async def connect(self, websocket: WebSocket, room_id: str, user_name: str):
         await websocket.accept()
         if room_id not in self.active_connections:
             self.active_connections[room_id] = []
+        await manager.broadcast(f"{user_name} is joined the game!", room_id)
         self.active_connections[room_id].append(websocket)
+
+        await websocket.send_text(f"welcome to quiz game {user_name}")
+
         print(self.active_connections)
 
-    def disconnect(self, websocket: WebSocket, room_id: str):
+    async def disconnect(self, websocket: WebSocket, room_id: str, user_name: str):
         self.active_connections[room_id].remove(websocket)
         if not self.active_connections[room_id]:
             del self.active_connections[room_id]
+
+        await manager.broadcast(f"{user_name} left the game!", room_id)
 
     async def send_personal_message(
         self, message: str, websocket: WebSocket, room_id: str
@@ -38,17 +44,18 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.websocket("/ws/{room_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: str):
-    await manager.connect(websocket, room_id)
+@app.websocket("/ws/{room_id}/{user_name}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, user_name: str = ""):
+    await manager.connect(websocket, room_id, user_name)
     try:
         while True:
             data = await websocket.receive_text()
-            await manager.broadcast("welcome to quiz game", room_id)
+            print(data, room_id, user_name)
+            # await manager.broadcast("welcome to quiz game", room_id)
             # Broadcast to all connections in the room
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, room_id)
+        await manager.disconnect(websocket, room_id, user_name)
 
 
 @app.get("/create_room")
